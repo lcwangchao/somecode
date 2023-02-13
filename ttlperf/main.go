@@ -68,7 +68,9 @@ func startInsertTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *at
 			_, err = stmt.ExecContext(ctx, uid, itemID, ts, blob, dt)
 			if err != nil {
 				log.L().Error(err.Error(), zap.Error(err))
-				continue
+				time.Sleep(time.Second)
+				go startInsertTask(ctx, db, ch, counter)
+				return
 			}
 
 			counter.Add(1)
