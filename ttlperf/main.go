@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -59,7 +60,8 @@ func startInsertTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *at
 			}
 
 			bs := [16]byte(uuid.New())
-			uid := string(bs[:])
+			md5sum := md5.Sum(bs[:])
+			uid := string(md5sum[:])
 			itemID := uid
 			tm := time.Now().Add(offsetDuration)
 			ts := tm.Unix()
