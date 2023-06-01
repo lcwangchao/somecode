@@ -30,6 +30,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	scanQuery   = "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? LIMIT 100000, 1"
+	insertQuery = "INSERT INTO Serve(UUID, ServeItemId, Timestamp, `Blob`, ttl) VALUES (?,?,?,?,?)"
+)
+
 func startScanTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *atomic.Int64) {
 	conn, err := db.Conn(context.TODO())
 	if err != nil {
@@ -37,7 +42,7 @@ func startScanTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *atom
 	}
 	defer conn.Close()
 
-	stmt, err := conn.PrepareContext(context.TODO(), "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? LIMIT 100000, 1")
+	stmt, err := conn.PrepareContext(context.TODO(), scanQuery)
 	if err != nil {
 		panic(err)
 	}
@@ -92,7 +97,7 @@ func startInsertTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *at
 	}
 	blob := sb.String()
 
-	stmt, err := conn.PrepareContext(context.TODO(), "INSERT INTO Serve(UUID, ServeItemId, Timestamp, `Blob`, ttl) VALUES (?,?,?,?,?)")
+	stmt, err := conn.PrepareContext(context.TODO(), insertQuery)
 	if err != nil {
 		panic(err)
 	}
@@ -225,6 +230,11 @@ func main() {
 
 			totalQPS := float64(totalInc) / interval.Seconds()
 			fmt.Printf("Total QPS: %.0f\n\n", totalQPS)
+			printQuery := insertQuery
+			if *mode == "read" {
+				printQuery = scanQuery
+			}
+			fmt.Println(printQuery)
 		}
 	}
 }
