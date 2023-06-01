@@ -37,7 +37,7 @@ func startScanTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *atom
 	}
 	defer conn.Close()
 
-	stmt, err := conn.PrepareContext(context.TODO(), "SELECT UUID, Blob FROM Serve WHERE UUID > ? LIMIT 128")
+	stmt, err := conn.PrepareContext(context.TODO(), "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? LIMIT 128")
 	if err != nil {
 		panic(err)
 	}
