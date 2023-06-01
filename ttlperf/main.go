@@ -30,6 +30,55 @@ import (
 	"golang.org/x/time/rate"
 )
 
+func startScanTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *atomic.Int64) {
+	conn, err := db.Conn(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	stmt, err := conn.PrepareContext(context.TODO(), "SELECT UUID, Blob FROM Serve WHERE UUID > ? LIMIT 128")
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case _, ok := <-ch:
+			if !ok {
+				return
+			}
+
+			bs := [16]byte(uuid.New())
+			uid := string(bs[:])
+
+			rs, err := stmt.QueryContext(ctx, uid)
+			if err != nil {
+				log.L().Error(err.Error(), zap.Error(err))
+				time.Sleep(time.Second)
+				go startScanTask(ctx, db, ch, counter)
+				return
+			}
+
+			for rs.Next() {
+				var var1, var2 any
+				if err = rs.Scan(&var1, &var2); err != nil {
+					log.L().Error(err.Error(), zap.Error(err))
+					time.Sleep(time.Second)
+					rs.Close()
+					go startScanTask(ctx, db, ch, counter)
+					return
+				}
+			}
+			rs.Close()
+			counter.Add(1)
+		}
+	}
+}
+
 func startInsertTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *atomic.Int64) {
 	conn, err := db.Conn(context.TODO())
 	if err != nil {
@@ -102,6 +151,7 @@ func startDispatchToken(ctx context.Context, ch chan<- interface{}, limiter *rat
 }
 
 var (
+	mode           = flag.String("mode", "write", "read/write")
 	host           = flag.String("host", "127.0.0.1", "db host")
 	port           = flag.Int("port", 4000, "db port")
 	user           = flag.String("user", "root", "db user")
@@ -141,7 +191,11 @@ func main() {
 
 	for i := range counters {
 		counters[i] = &atomic.Int64{}
-		go startInsertTask(ctx, db, ch, counters[i])
+		if *mode == "read" {
+			go startScanTask(ctx, db, ch, counters[i])
+		} else {
+			go startInsertTask(ctx, db, ch, counters[i])
+		}
 	}
 
 	startTime := time.Now()
