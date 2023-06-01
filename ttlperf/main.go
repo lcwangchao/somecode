@@ -31,11 +31,17 @@ import (
 )
 
 const (
-	scanQuery   = "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? LIMIT ?, 1"
+	scanQuery   = "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? AND TIMESTAMP < FROM_UNIXTIME(?) LIMIT 1"
 	insertQuery = "INSERT INTO Serve(UUID, ServeItemId, Timestamp, `Blob`, ttl) VALUES (?,?,?,?,?)"
 )
 
 func startScanTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *atomic.Int64) {
+	du, err := time.ParseDuration(*offset)
+	if err != nil {
+		panic(err)
+	}
+
+	ts := time.Now().Unix() - int64(du/time.Second)
 	conn, err := db.Conn(context.TODO())
 	if err != nil {
 		panic(err)
@@ -60,7 +66,7 @@ func startScanTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *atom
 			bs := [16]byte(uuid.New())
 			uid := string(bs[:])
 
-			rs, err := stmt.QueryContext(ctx, uid, *recordSize)
+			rs, err := stmt.QueryContext(ctx, uid, ts)
 			if err != nil {
 				log.L().Error(err.Error(), zap.Error(err))
 				time.Sleep(time.Second)
