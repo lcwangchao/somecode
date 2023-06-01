@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	scanQuery   = "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? AND TIMESTAMP < FROM_UNIXTIME(?) LIMIT 1"
+	scanQuery   = "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? AND ttl < FROM_UNIXTIME(?) LIMIT 1"
 	insertQuery = "INSERT INTO Serve(UUID, ServeItemId, Timestamp, `Blob`, ttl) VALUES (?,?,?,?,?)"
 )
 
