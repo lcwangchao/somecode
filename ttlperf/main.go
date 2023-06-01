@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	scanQuery   = "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? LIMIT 100000, 1"
+	scanQuery   = "SELECT UUID, `Blob` FROM Serve WHERE UUID > ? LIMIT ?, 1"
 	insertQuery = "INSERT INTO Serve(UUID, ServeItemId, Timestamp, `Blob`, ttl) VALUES (?,?,?,?,?)"
 )
 
@@ -60,7 +60,7 @@ func startScanTask(ctx context.Context, db *sql.DB, ch <-chan any, counter *atom
 			bs := [16]byte(uuid.New())
 			uid := string(bs[:])
 
-			rs, err := stmt.QueryContext(ctx, uid)
+			rs, err := stmt.QueryContext(ctx, uid, *recordSize)
 			if err != nil {
 				log.L().Error(err.Error(), zap.Error(err))
 				time.Sleep(time.Second)
